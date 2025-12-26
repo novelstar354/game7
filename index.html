@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>パズドラ風 完全版＋ステージ制</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {
+  margin:0;
+  background:#111;
+  color:white;
+  font-family:sans-serif;
+  text-align:center;
+}
+#game {
+  max-width:420px;
+  margin:auto;
+}
+#status {
+  display:flex;
+  justify-content:space-between;
+  padding:10px;
+}
+.bar {
+  height:14px;
+  background:#444;
+  border-radius:10px;
+  overflow:hidden;
+}
+.bar-inner { height:100%; transition:.3s; }
+#hpBar { background:lime; }
+#enemyHp { background:red; }
+
+#stage {
+  font-size:20px;
+  margin-bottom:5px;
+}
+
+#combo {
+  font-size:28px;
+  color:gold;
+  text-shadow:0 0 10px orange;
+  opacity:0;
+}
+
+#board {
+  display:grid;
+  grid-template-columns:repeat(6,1fr);
+  grid-template-rows:repeat(5,1fr);
+  gap:4px;
+  margin:10px;
+}
+
+.cell {
+  aspect-ratio:1;
+  border-radius:8px;
+}
+.red{background:#e74c3c}
+.blue{background:#3498db}
+.green{background:#2ecc71}
+.yellow{background:#f1c40f}
+.purple{background:#9b59b6}
+
+.selected { outline:3px solid white; }
+
+button {
+  padding:10px;
+  margin:5px;
+  font-size:16px;
+}
+
+.shake {
+  animation:shake .3s;
+}
+@keyframes shake {
+  0%{transform:translateX(0)}
+  25%{transform:translateX(-6px)}
+  50%{transform:translateX(6px)}
+  75%{transform:translateX(-6px)}
+  100%{transform:translateX(0)}
+}
+</style>
+</head>
+<body>
+
+<div id="game">
+  <h2>パズドラ風バトル</h2>
+
+  <div id="stage">STAGE 1</div>
+
+  <div id="status">
+    <div>HP<div class="bar"><div id="hpBar" class="bar-inner"></div></div></div>
+    <div>ENEMY<div class="bar"><div id="enemyHp" class="bar-inner"></div></div></div>
+  </div>
+
+  <div id="combo">0 COMBO</div>
+  <div id="board"></div>
+
+  <div>
+    <button onclick="useSkill()">スキル</button>
+    <button onclick="saveGame()">セーブ</button>
+    <button onclick="clearSave()">削除</button>
+  </div>
+</div>
+
+<script>
+const ROW=5, COL=6;
+const colors=["red","blue","green","yellow","purple"];
+let board=[], select=null;
+let combo=0, stage=1;
+
+let player={hp:100,max:100};
+let enemy={hp:100,max:100};
+
+function rand(){ return colors[Math.floor(Math.random()*colors.length)]; }
+
+function init(){
+  board=[];
+  for(let r=0;r<ROW;r++){
+    board[r]=[];
+    for(let c=0;c<COL;c++) board[r][c]=rand();
+  }
+  load();
+  updateStage();
+  render();
+}
+
+function updateStage(){
+  document.getElementById("stage").textContent="STAGE "+stage;
+  enemy.max=100+stage*30;
+  enemy.hp=enemy.max;
+}
+
+function render(){
+  const b=document.getElementById("board");
+  b.innerHTML="";
+  for(let r=0;r<ROW;r++){
+    for(let c=0;c<COL;c++){
+      const d=document.createElement("div");
+      d.className="cell "+board[r][c];
+      d.dataset.r=r;
+      d.dataset.c=c;
+      b.appendChild(d);
+    }
+  }
+  document.getElementById("hpBar").style.width=(player.hp/player.max*100)+"%";
+  document.getElementById("enemyHp").style.width=(enemy.hp/enemy.max*100)+"%";
+}
+
+function swap(a,b){
+  [board[a.r][a.c],board[b.r][b.c]]=[board[b.r][b.c],board[a.r][a.c]];
+}
+
+function check(){
+  let del=[];
+  for(let r=0;r<ROW;r++){
+    for(let c=0;c<COL-2;c++){
+      let v=board[r][c];
+      if(v&&v===board[r][c+1]&&v===board[r][c+2]) del.push([r,c],[r,c+1],[r,c+2]);
+    }
+  }
+  for(let c=0;c<COL;c++){
+    for(let r=0;r<ROW-2;r++){
+      let v=board[r][c];
+      if(v&&v===board[r+1][c]&&v===board[r+2][c]) del.push([r,c],[r+1,c],[r+2,c]);
+    }
+  }
+
+  if(del.length){
+    combo++;
+    showCombo();
+    del.forEach(d=>board[d[0]][d[1]]=null);
+    fall();
+    attack(combo);
+    setTimeout(check,300);
+  } else {
+    combo=0;
+    document.getElementById("combo").style.opacity=0;
+  }
+}
+
+function fall(){
+  for(let c=0;c<COL;c++){
+    for(let r=ROW-1;r>=0;r--){
+      if(!board[r][c]){
+        for(let k=r-1;k>=0;k--){
+          if(board[k][c]){
+            board[r][c]=board[k][c];
+            board[k][c]=null;
+            break;
+          }
+        }
+        if(!board[r][c]) board[r][c]=rand();
+      }
+    }
+  }
+  render();
+}
+
+function attack(combo){
+  let dmg=combo*10;
+  enemy.hp-=dmg;
+  document.getElementById("game").classList.add("shake");
+  setTimeout(()=>document.getElementById("game").classList.remove("shake"),300);
+
+  if(enemy.hp<=0){
+    stage++;
+    updateStage();
+    alert("ステージクリア！");
+  } else {
+    setTimeout(enemyTurn,500);
+  }
+}
+
+function enemyTurn(){
+  let r=Math.random();
+  let dmg=10;
+
+  if(enemy.hp < enemy.max*0.3 && r<0.3){
+    enemy.hp+=20;
+  } else if(r<0.5){
+    dmg=20;
+    player.hp-=dmg;
+  } else {
+    player.hp-=10;
+  }
+
+  if(player.hp<=0){
+    alert("ゲームオーバー");
+    player.hp=player.max;
+    stage=1;
+    updateStage();
+  }
+  render();
+}
+
+function showCombo(){
+  const c=document.getElementById("combo");
+  c.textContent=combo+" COMBO!";
+  c.style.opacity=1;
+}
+
+document.getElementById("board").addEventListener("pointerdown",e=>{
+  if(!e.target.classList.contains("cell"))return;
+  select=e.target;
+  select.classList.add("selected");
+});
+document.getElementById("board").addEventListener("pointerup",e=>{
+  if(!select||!e.target.classList.contains("cell"))return;
+  let a={r:+select.dataset.r,c:+select.dataset.c};
+  let b={r:+e.target.dataset.r,c:+e.target.dataset.c};
+  if(Math.abs(a.r-b.r)+Math.abs(a.c-b.c)==1){
+    swap(a,b);
+    render();
+    check();
+  }
+  select.classList.remove("selected");
+  select=null;
+});
+
+function useSkill(){
+  for(let r=0;r<ROW;r++)
+    for(let c=0;c<COL;c++)
+      if(Math.random()<0.3) board[r][c]="red";
+  render();
+}
+
+function saveGame(){
+  localStorage.setItem("puzzleSave",JSON.stringify({player,enemy,stage,board}));
+  alert("セーブしました");
+}
+function load(){
+  let s=localStorage.getItem("puzzleSave");
+  if(s){
+    let d=JSON.parse(s);
+    player=d.player;
+    enemy=d.enemy;
+    stage=d.stage;
+    board=d.board;
+  }
+}
+function clearSave(){
+  localStorage.removeItem("puzzleSave");
+  alert("削除しました");
+}
+
+init();
+</script>
+</body>
+</html>
