@@ -3,75 +3,54 @@
 <head>
 <meta charset="UTF-8">
 <title>パズルバブルズ</title>
+ <link rel="icon" href="https://encrypted.tbn0.gstatic.com/images?q=tbn:ANd9GcTJvJqCLAC_3NmwM-MLjFgXzsQFXsdzJtKQfg&s" sizes="16×16" type="image/png" />  
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
- <link rel="icon" href="" sizes="16×16" type="image/png" />  
 <style>
-body {
-  margin:0;
-  background:#111;
-  color:white;
-  font-family:sans-serif;
-  text-align:center;
-}
-#game {
-  max-width:420px;
-  margin:auto;
-}
-#status {
-  display:flex;
-  justify-content:space-between;
-  padding:10px;
-}
-.bar {
-  height:14px;
-  background:#444;
-  border-radius:10px;
-  overflow:hidden;
-}
-.bar-inner { height:100%; transition:.3s; }
-#hpBar { background:lime; }
-#enemyHp { background:red; }
+body{margin:0;background:#111;color:#fff;font-family:sans-serif;overflow:hidden}
+#top{display:flex;justify-content:space-between;padding:6px;background:#222}
+.bar{width:110px;height:10px;background:#333;border-radius:10px;overflow:hidden}
+.bar-inner{height:100%;background:linear-gradient(to right,#0f0,#6f6)}
+#enemyBar .bar-inner{background:linear-gradient(to right,#f33,#a00)}
 
-#stage {
-  font-size:20px;
-  margin-bottom:5px;
-}
+#board{width:90vw;max-width:360px;height:300px;margin:10px auto;
+display:grid;grid-template-columns:repeat(6,1fr);grid-template-rows:repeat(5,1fr);gap:4px}
 
-#combo {
-  font-size:28px;
-  color:gold;
-  text-shadow:0 0 10px orange;
-  opacity:0;
-}
+.orb{border-radius:50%;box-shadow:inset -4px -4px 6px rgba(0,0,0,.4), inset 3px 3px 6px rgba(255,255,255,.4)}
+.fire{background:#f55}.water{background:#59f}.wood{background:#5f5}
+.light{background:#ff5}.dark{background:#b5f}
 
-#board {
-  display:grid;
-  grid-template-columns:repeat(6,1fr);
-  grid-template-rows:repeat(5,1fr);
-  gap:4px;
-  margin:10px;
+.absorb{outline:3px dashed cyan}
+.reflect{outline:3px dashed magenta}
+.nullify{outline:3px dashed white}
+.barrier{outline:3px solid gold}
+
+#combo{position:absolute;top:70px;width:100%;text-align:center;
+font-size:40px;color:gold;opacity:0;transition:.3s}
+
+button{background:#333;color:white;border:none;border-radius:20px;padding:6px 12px;margin:3px}
+
+#resultScreen{
+display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+background:rgba(0,0,0,.85);z-index:999;
+text-align:center;color:white;
+animation:fadeIn .5s;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.resultBox{
+margin-top:80px;
+animation:pop .5s ease-out;
+}
+@keyframes pop{
+from{transform:scale(.5);opacity:0}
+to{transform:scale(1);opacity:1}
 }
 
-.cell {
-  aspect-ratio:1;
-  border-radius:8px;
-}
-.red{background:#e74c3c}
-.blue{background:#3498db}
-.green{background:#2ecc71}
-.yellow{background:#f1c40f}
-.purple{background:#9b59b6}
-
-.selected { outline:3px solid white; }
-
-button {
-  padding:10px;
-  margin:5px;
-  font-size:16px;
-}
-
-.shake {
-  animation:shake .3s;
+.rank{
+font-size:80px;
+font-weight:bold;
+color:gold;
+text-shadow:0 0 20px gold;
 }
    footer {
            padding: 30px;
@@ -81,220 +60,214 @@ button {
            border-top: 1px solid rgba(255,255,255,0.1);
            margin-top: 60px;
    }
-@keyframes shake {
-  0%{transform:translateX(0)}
-  25%{transform:translateX(-6px)}
-  50%{transform:translateX(6px)}
-  75%{transform:translateX(-6px)}
-  100%{transform:translateX(0)}
-}
 </style>
 </head>
 <body>
 
-<div id="game">
-  <h2>パズルバブルズ</h2>
+<div id="top">
+  <div>HP<div class="bar"><div id="hp" class="bar-inner"></div></div></div>
+  <div>STAGE <span id="stage">1</span></div>
+  <div>ENEMY<div class="bar" id="enemyBar"><div id="enemy" class="bar-inner"></div></div></div>
+</div>
 
-  <div id="stage">STAGE 1</div>
+<div id="combo"></div>
+<div id="board"></div>
 
-  <div id="status">
-    <div>HP<div class="bar"><div id="hpBar" class="bar-inner"></div></div></div>
-    <div>ENEMY<div class="bar"><div id="enemyHp" class="bar-inner"></div></div></div>
-  </div>
+<div style="text-align:center">
+  <button onclick="saveGame()">💾SAVE</button>
+  <button onclick="loadGame()">📂LOAD</button>
+</div>
 
-  <div id="combo">0 COMBO</div>
-  <div id="board"></div>
-
-  <div>
-    <button onclick="useSkill()">スキル</button>
-    <button onclick="saveGame()">セーブ</button>
-    <button onclick="clearSave()">削除</button>
+<!-- RESULT -->
+<div id="resultScreen">
+  <div class="resultBox">
+    <h1>RESULT</h1>
+    <div class="rank" id="rankText">S</div>
+    <p>到達ステージ：<span id="r_stage"></span></p>
+    <p>最大コンボ：<span id="r_combo"></span></p>
+    <p>撃破数：<span id="r_kill"></span></p>
+    <p>プレイ時間：<span id="r_time"></span> 秒</p>
+    <button onclick="restartGame()">🔁 RESTART</button>
   </div>
 </div>
-     <footer>
-       © 2025 GAMEHUB - All Rights Reserved.
-   </footer>
-
+    <footer>
+       © 2025 STAR CORPORATION - All Rights Reserved.
+    </footer>
 
 <script>
-const ROW=5, COL=6;
-const colors=["red","blue","green","yellow","purple"];
-let board=[], select=null;
-let combo=0, stage=1;
+const ROW=5,COL=6;
+const colors=["fire","water","wood","light","dark"];
+let board=[],combo=0,maxCombo=0;
+let stage=1,hp=100,enemy=100,barrier=0;
+let enemyAttr="fire",enemyMode="normal";
+let killCount=0,startTime=Date.now();
 
-let player={hp:100,max:100};
-let enemy={hp:100,max:100};
-
-function rand(){ return colors[Math.floor(Math.random()*colors.length)]; }
+function rand(a){return a[Math.floor(Math.random()*a.length)]}
 
 function init(){
   board=[];
   for(let r=0;r<ROW;r++){
     board[r]=[];
-    for(let c=0;c<COL;c++) board[r][c]=rand();
+    for(let c=0;c<COL;c++) board[r][c]=rand(colors);
   }
-  load();
-  updateStage();
-  render();
+  newEnemy();
+  draw();
+  updateUI();
 }
 
-function updateStage(){
-  document.getElementById("stage").textContent="STAGE "+stage;
-  enemy.max=100+stage*30;
-  enemy.hp=enemy.max;
+function newEnemy(){
+  enemy=100+stage*25;
+  barrier=stage%3==0?50+stage*10:0;
+  const modes=["normal","absorb","reflect","nullify"];
+  enemyMode=stage%5==0?rand(modes):"normal";
+  enemyAttr=rand(colors);
 }
 
-function render(){
+function draw(){
   const b=document.getElementById("board");
   b.innerHTML="";
-  for(let r=0;r<ROW;r++){
-    for(let c=0;c<COL;c++){
-      const d=document.createElement("div");
-      d.className="cell "+board[r][c];
-      d.dataset.r=r;
-      d.dataset.c=c;
-      b.appendChild(d);
-    }
+  for(let r=0;r<ROW;r++)for(let c=0;c<COL;c++){
+    let d=document.createElement("div");
+    d.className="orb "+board[r][c];
+    d.dataset.r=r;d.dataset.c=c;
+    b.appendChild(d);
   }
-  document.getElementById("hpBar").style.width=(player.hp/player.max*100)+"%";
-  document.getElementById("enemyHp").style.width=(enemy.hp/enemy.max*100)+"%";
 }
 
-function swap(a,b){
-  [board[a.r][a.c],board[b.r][b.c]]=[board[b.r][b.c],board[a.r][a.c]];
+let drag=false,last=null;
+document.onpointerdown=e=>{
+  if(!e.target.classList.contains("orb"))return;
+  drag=true;
+  last={r:+e.target.dataset.r,c:+e.target.dataset.c};
+};
+document.onpointermove=e=>{
+  if(!drag)return;
+  const t=document.elementFromPoint(e.clientX,e.clientY);
+  if(!t||!t.classList.contains("orb"))return;
+  let r=+t.dataset.r,c=+t.dataset.c;
+  if(Math.abs(r-last.r)+Math.abs(c-last.c)==1){
+    [board[r][c],board[last.r][last.c]]=[board[last.r][last.c],board[r][c]];
+    last={r,c};
+    draw();
+  }
+};
+document.onpointerup=()=>{drag=false;check();};
+
+function rate(col){
+  if(col===enemyAttr)return 0.5;
+  if(col==="fire"&&enemyAttr==="wood")return 1.5;
+  if(col==="water"&&enemyAttr==="fire")return 1.5;
+  if(col==="wood"&&enemyAttr==="water")return 1.5;
+  if(col==="light"&&enemyAttr==="dark")return 1.5;
+  if(col==="dark"&&enemyAttr==="light")return 1.5;
+  return 1;
 }
 
 function check(){
   let del=[];
-  for(let r=0;r<ROW;r++){
-    for(let c=0;c<COL-2;c++){
-      let v=board[r][c];
-      if(v&&v===board[r][c+1]&&v===board[r][c+2]) del.push([r,c],[r,c+1],[r,c+2]);
-    }
-  }
-  for(let c=0;c<COL;c++){
-    for(let r=0;r<ROW-2;r++){
-      let v=board[r][c];
-      if(v&&v===board[r+1][c]&&v===board[r+2][c]) del.push([r,c],[r+1,c],[r+2,c]);
-    }
+  for(let r=0;r<ROW;r++)for(let c=0;c<COL-2;c++)
+    if(board[r][c]&&board[r][c]==board[r][c+1]&&board[r][c]==board[r][c+2])
+      del.push([r,c],[r,c+1],[r,c+2]);
+
+  for(let c=0;c<COL;c++)for(let r=0;r<ROW-2;r++)
+    if(board[r][c]&&board[r][c]==board[r+1][c]&&board[r][c]==board[r+2][c])
+      del.push([r,c],[r+1,c],[r+2,c]);
+
+  if(!del.length){combo=0;return;}
+
+  combo++; maxCombo=Math.max(maxCombo,combo);
+  let dmg=0;
+
+  del.forEach(([r,c])=>{
+    let col=board[r][c];
+    let base=10*rate(col);
+    if(enemyMode==="absorb"&&col===enemyAttr) enemy+=base;
+    else if(enemyMode==="reflect"&&col===enemyAttr) hp-=base;
+    else if(enemyMode==="nullify"&&col===enemyAttr){}
+    else dmg+=base;
+    board[r][c]=null;
+  });
+
+  if(barrier>0){
+    const cut=Math.min(barrier,dmg);
+    barrier-=cut; dmg-=cut;
   }
 
-  if(del.length){
-    combo++;
-    showCombo();
-    del.forEach(d=>board[d[0]][d[1]]=null);
-    fall();
-    attack(combo);
-    setTimeout(check,300);
-  } else {
-    combo=0;
-    document.getElementById("combo").style.opacity=0;
+  enemy-=dmg;
+  fall();
+  showCombo();
+  updateUI();
+
+  if(enemy<=0){
+    killCount++;
+    stage++;
+    newEnemy();
   }
+
+  if(hp<=0) showResult();
+  setTimeout(check,200);
 }
 
 function fall(){
   for(let c=0;c<COL;c++){
     for(let r=ROW-1;r>=0;r--){
       if(!board[r][c]){
-        for(let k=r-1;k>=0;k--){
-          if(board[k][c]){
-            board[r][c]=board[k][c];
-            board[k][c]=null;
+        for(let rr=r-1;rr>=0;rr--){
+          if(board[rr][c]){
+            board[r][c]=board[rr][c];
+            board[rr][c]=null;
             break;
           }
         }
-        if(!board[r][c]) board[r][c]=rand();
+        if(!board[r][c]) board[r][c]=rand(colors);
       }
     }
   }
-  render();
+  draw();
 }
 
-function attack(combo){
-  let dmg=combo*10;
-  enemy.hp-=dmg;
-  document.getElementById("game").classList.add("shake");
-  setTimeout(()=>document.getElementById("game").classList.remove("shake"),300);
-
-  if(enemy.hp<=0){
-    stage++;
-    updateStage();
-    alert("ステージクリア！");
-  } else {
-    setTimeout(enemyTurn,500);
-  }
-}
-
-function enemyTurn(){
-  let r=Math.random();
-  let dmg=10;
-
-  if(enemy.hp < enemy.max*0.3 && r<0.3){
-    enemy.hp+=20;
-  } else if(r<0.5){
-    dmg=20;
-    player.hp-=dmg;
-  } else {
-    player.hp-=10;
-  }
-
-  if(player.hp<=0){
-    alert("ゲームオーバー");
-    player.hp=player.max;
-    stage=1;
-    updateStage();
-  }
-  render();
+function updateUI(){
+  document.getElementById("hp").style.width=hp+"%";
+  document.getElementById("enemy").style.width=enemy+"%";
+  document.getElementById("stage").textContent=stage;
 }
 
 function showCombo(){
   const c=document.getElementById("combo");
   c.textContent=combo+" COMBO!";
   c.style.opacity=1;
+  setTimeout(()=>c.style.opacity=0,400);
 }
 
-document.getElementById("board").addEventListener("pointerdown",e=>{
-  if(!e.target.classList.contains("cell"))return;
-  select=e.target;
-  select.classList.add("selected");
-});
-document.getElementById("board").addEventListener("pointerup",e=>{
-  if(!select||!e.target.classList.contains("cell"))return;
-  let a={r:+select.dataset.r,c:+select.dataset.c};
-  let b={r:+e.target.dataset.r,c:+e.target.dataset.c};
-  if(Math.abs(a.r-b.r)+Math.abs(a.c-b.c)==1){
-    swap(a,b);
-    render();
-    check();
-  }
-  select.classList.remove("selected");
-  select=null;
-});
+function showResult(){
+  document.getElementById("r_stage").textContent=stage;
+  document.getElementById("r_combo").textContent=maxCombo;
+  document.getElementById("r_kill").textContent=killCount;
+  document.getElementById("r_time").textContent=
+    Math.floor((Date.now()-startTime)/1000);
 
-function useSkill(){
-  for(let r=0;r<ROW;r++)
-    for(let c=0;c<COL;c++)
-      if(Math.random()<0.3) board[r][c]="red";
-  render();
+  let rank="D";
+  if(stage>=10) rank="A";
+  if(stage>=20) rank="S";
+  if(stage>=30) rank="SS";
+  document.getElementById("rankText").textContent=rank;
+
+  document.getElementById("resultScreen").style.display="block";
 }
 
 function saveGame(){
-  localStorage.setItem("puzzleSave",JSON.stringify({player,enemy,stage,board}));
-  alert("セーブしました");
+  localStorage.setItem("pzl_save",JSON.stringify({
+    stage,hp,enemy,enemyAttr,enemyMode,barrier,killCount,maxCombo
+  }));
 }
-function load(){
-  let s=localStorage.getItem("puzzleSave");
-  if(s){
-    let d=JSON.parse(s);
-    player=d.player;
-    enemy=d.enemy;
-    stage=d.stage;
-    board=d.board;
-  }
+function loadGame(){
+  const d=JSON.parse(localStorage.getItem("pzl_save"));
+  if(!d)return;
+  ({stage,hp,enemy,enemyAttr,enemyMode,barrier,killCount,maxCombo}=d);
+  updateUI();
 }
-function clearSave(){
-  localStorage.removeItem("puzzleSave");
-  alert("削除しました");
+function restartGame(){
+  location.reload();
 }
 
 init();
