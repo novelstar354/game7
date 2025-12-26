@@ -2,8 +2,9 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>パズドラ風 完全版＋ステージ制</title>
+<title>パズルバブルズ</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+ <link rel="icon" href="" sizes="16×16" type="image/png" />  
 <style>
 body {
   margin:0;
@@ -72,6 +73,14 @@ button {
 .shake {
   animation:shake .3s;
 }
+   footer {
+           padding: 30px;
+           text-align: center;
+           font-size: 0.85rem;
+           color: rgba(255,255,255,0.5);
+           border-top: 1px solid rgba(255,255,255,0.1);
+           margin-top: 60px;
+   }
 @keyframes shake {
   0%{transform:translateX(0)}
   25%{transform:translateX(-6px)}
@@ -84,7 +93,7 @@ button {
 <body>
 
 <div id="game">
-  <h2>パズドラ風バトル</h2>
+  <h2>パズルバブルズ</h2>
 
   <div id="stage">STAGE 1</div>
 
@@ -102,6 +111,10 @@ button {
     <button onclick="clearSave()">削除</button>
   </div>
 </div>
+     <footer>
+       © 2025 GAMEHUB - All Rights Reserved.
+   </footer>
+
 
 <script>
 const ROW=5, COL=6;
