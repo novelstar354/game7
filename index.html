@@ -2,37 +2,44 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>PUZZLE BATTLE ULTIMATE+</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>PUZZLE BATTLE</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <link rel="icon" href="https://png.pngtree.com/png-clipart/20240927/original/pngtree-colorful-glass-ball-png-image_16108516.png" sizes="16×16" type="image/png" />  
 <style>
-*{box-sizing:border-box;touch-action:none;}
-body{margin:0;background:#111;color:#fff;font-family:sans-serif;overflow:hidden;}
-
-#top{
-  display:flex;justify-content:space-between;
-  padding:6px;background:#222;font-size:14px;
+body{
+  margin:0;background:#111;color:#fff;font-family:sans-serif;
+  display:flex;flex-direction:column;align-items:center;
+  overflow:hidden;
 }
-.bar{width:110px;height:10px;background:#333;border-radius:10px;overflow:hidden}
-.bar>div{height:100%;background:linear-gradient(to right,#0f0,#6f6)}
-#enemyBar>div{background:linear-gradient(to right,#f33,#a00)}
+#top{
+  width:100%;display:flex;justify-content:space-between;
+  padding:8px;background:#222;font-size:14px;
+}
+.bar{width:100px;height:10px;background:#333;border-radius:8px;overflow:hidden}
+.bar div{height:100%;background:linear-gradient(90deg,#0f0,#6f6)}
+#enemyBar div{background:linear-gradient(90deg,#f44,#a00)}
 
-#timer{text-align:center;font-size:18px;margin:4px}
-#score{text-align:center;font-size:16px;color:#ffd700}
+#turnText{
+  position:fixed;top:40%;width:100%;text-align:center;
+  font-size:48px;font-weight:bold;opacity:0;
+  pointer-events:none;transition:.4s;z-index:10;
+}
+.turn-player{color:#4af;text-shadow:0 0 20px #4af;}
+.turn-enemy{color:#f44;text-shadow:0 0 20px #f44;}
 
 #board{
-  width:95vw;max-width:420px;height:360px;
-  margin:auto;
+  width:90vw;max-width:360px;
+  aspect-ratio:6/5;
   display:grid;
   grid-template-columns:repeat(6,1fr);
   grid-template-rows:repeat(5,1fr);
   gap:4px;
+  margin-top:10px;
 }
-
 .orb{
   border-radius:50%;
-  box-shadow:inset -4px -4px 6px rgba(0,0,0,.4),
-             inset 3px 3px 6px rgba(255,255,255,.3);
+  box-shadow:inset -3px -3px 6px rgba(0,0,0,.4),
+             inset 3px 3px 6px rgba(255,255,255,.4);
 }
 
 .fire{background:#f55}
@@ -40,158 +47,194 @@ body{margin:0;background:#111;color:#fff;font-family:sans-serif;overflow:hidden;
 .wood{background:#5f5}
 .light{background:#ff5}
 .dark{background:#b5f}
-.boss{animation:pulse 1s infinite}
-
-@keyframes pulse{
-  0%{filter:brightness(1)}
-  50%{filter:brightness(1.6)}
-  100%{filter:brightness(1)}
-}
-
-#combo{
-  position:absolute;top:70px;width:100%;
-  text-align:center;font-size:40px;
-  color:gold;opacity:0;transition:.3s;
-}
-
-#turnText{
-  position:fixed;top:40%;width:100%;
-  text-align:center;font-size:48px;
-  font-weight:bold;opacity:0;
-  pointer-events:none;transition:.4s;
-}
-
-.turn-player{color:#4af;text-shadow:0 0 20px #4af;}
-.turn-enemy{color:#f44;text-shadow:0 0 20px #f44;}
-
-#skillBtn{
-  margin:6px auto;
-  display:block;
-  padding:10px 20px;
-  border:none;border-radius:20px;
-  background:#0a6;color:#fff;
-  font-size:16px;
-  opacity:.4;
-}
 
 #result{
   position:fixed;inset:0;
-  background:rgba(0,0,0,.85);
-  display:none;justify-content:center;align-items:center;
-  text-align:center;
+  background:rgba(0,0,0,.9);
+  display:none;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
 }
-button{cursor:pointer;}
+
+button{
+  padding:8px 16px;border:none;border-radius:20px;
+  background:#444;color:white;margin:6px;
+}
 </style>
 </head>
 <body>
 
 <div id="top">
-  <div>HP<div class="bar"><div id="hp"></div></div></div>
-  <div>STAGE <span id="stage">1</span></div>
-  <div>ENEMY<div class="bar" id="enemyBar"><div id="enemy"></div></div></div>
+  <div>HP<div class="bar"><div id="hpBar"></div></div></div>
+  <div>TURN <span id="turn">1</span></div>
+  <div>ENEMY<div class="bar" id="enemyBar"><div></div></div></div>
 </div>
 
-<div id="timer">TIME: 30</div>
-<div id="score">SCORE: 0</div>
-
-<button id="skillBtn" onclick="heal()">HEAL (3)</button>
-
-<div id="combo"></div>
 <div id="turnText"></div>
 <div id="board"></div>
 
+<div style="margin:10px">
+  <button onclick="saveGame()">💾SAVE</button>
+  <button onclick="loadGame()">📂LOAD</button>
+</div>
+
 <div id="result">
-  <div>
-    <h2 id="resultText"></h2>
-    <button onclick="location.reload()">RETRY</button>
-  </div>
+  <h1 id="resultText"></h1>
+  <button onclick="location.reload()">RETRY</button>
 </div>
 
 <script>
+/* ===== 基本設定 ===== */
 const ROW=5,COL=6;
 const colors=["fire","water","wood","light","dark"];
-const SAVE_KEY="PUZZLE_ULTIMATE_SAVE";
 
-let board=[],stage=1,playerHP=100,enemyHP=100;
-let combo=0,timer=30,timerOn=false;
-let score=0,turnCount=0,healCharge=3;
-let enemyType="normal";
+let board=[];
+let turn=1;
+let timer=15;
+let playerHP=100;
+let enemyHP=100;
+let combo=0;
+let healCount=0;
+let timerRunning=false;
+let dragging=false;
+let startPos=null;
 
-/* -------- 初期化 -------- */
+/* ===== 初期化 ===== */
 function init(){
   board=[];
   for(let r=0;r<ROW;r++){
     board[r]=[];
-    for(let c=0;c<COL;c++) board[r][c]=rand();
+    for(let c=0;c<COL;c++){
+      board[r][c]=colors[Math.floor(Math.random()*5)];
+    }
   }
-  newEnemy(); draw(); updateUI();
+  enemyHP=100+turn*20;
+  updateUI();
+  draw();
+  startTurn();
+}
+init();
+
+/* ===== 描画 ===== */
+function draw(){
+  const b=document.getElementById("board");
+  b.innerHTML="";
+  for(let r=0;r<ROW;r++){
+    for(let c=0;c<COL;c++){
+      const d=document.createElement("div");
+      d.className="orb "+board[r][c];
+      d.dataset.r=r;
+      d.dataset.c=c;
+      b.appendChild(d);
+    }
+  }
 }
 
-/* -------- 敵 -------- */
-function newEnemy(){
-  enemyHP=100+stage*30;
-  enemyType=stage%5===0?"boss":"normal";
+/* ===== UI ===== */
+function updateUI(){
+  document.getElementById("hpBar").style.width=playerHP+"%";
+  document.querySelector("#enemyBar div").style.width=enemyHP+"%";
+  document.getElementById("turn").textContent=turn;
 }
 
-/* -------- 入力 -------- */
-let drag=false,last=null;
+/* ===== ターン演出 ===== */
+function showTurn(text,type){
+  const t=document.getElementById("turnText");
+  t.textContent=text;
+  t.className=type==="player"?"turn-player":"turn-enemy";
+  t.style.opacity=1;
+  setTimeout(()=>t.style.opacity=0,900);
+}
+
+/* ===== ターン管理 ===== */
+function startTurn(){
+  showTurn("YOUR TURN","player");
+  timer=15;
+  timerRunning=true;
+  tick();
+}
+function tick(){
+  if(!timerRunning) return;
+  setTimeout(()=>{
+    timer--;
+    if(timer<=0){
+      timerRunning=false;
+      enemyTurn();
+    }else tick();
+  },1000);
+}
+
+/* ===== 敵ターン ===== */
+function enemyTurn(){
+  showTurn("ENEMY TURN","enemy");
+  setTimeout(()=>{
+    let dmg=15+turn*2;
+    playerHP-=dmg;
+    if(playerHP<=0){
+      gameOver();
+      return;
+    }
+    turn++;
+    if(turn%3===0){ // 回復スキル
+      playerHP=Math.min(100,playerHP+20);
+    }
+    startTurn();
+    updateUI();
+  },1000);
+}
+
+/* ===== 入力処理 ===== */
 document.addEventListener("pointerdown",e=>{
-  if(!e.target.classList.contains("orb"))return;
-  drag=true; last={r:+e.target.dataset.r,c:+e.target.dataset.c};
-  if(!timerOn) startTurn();
+  if(!e.target.classList.contains("orb")) return;
+  dragging=true;
+  startPos={r:+e.target.dataset.r,c:+e.target.dataset.c};
 });
 document.addEventListener("pointermove",e=>{
-  if(!drag)return;
+  if(!dragging) return;
   const t=document.elementFromPoint(e.clientX,e.clientY);
   if(!t||!t.classList.contains("orb"))return;
   let r=+t.dataset.r,c=+t.dataset.c;
-  if(Math.abs(r-last.r)+Math.abs(c-last.c)==1){
-    [board[r][c],board[last.r][last.c]]=[board[last.r][last.c],board[r][c]];
-    last={r,c}; draw();
+  if(Math.abs(r-startPos.r)+Math.abs(c-startPos.c)===1){
+    [board[r][c],board[startPos.r][startPos.c]]=
+    [board[startPos.r][startPos.c],board[r][c]];
+    startPos={r,c};
+    draw();
   }
 });
-document.addEventListener("pointerup",()=>{drag=false;check();});
+document.addEventListener("pointerup",()=>{
+  dragging=false;
+  checkMatch();
+});
 
-/* -------- ターン -------- */
-function startTurn(){
-  timerOn=true; timer=30;
-  showTurn("YOUR TURN","player");
-}
-function showTurn(t,cls){
-  const el=document.getElementById("turnText");
-  el.textContent=t; el.className=cls;
-  el.style.opacity=1;
-  setTimeout(()=>el.style.opacity=0,700);
-}
-
-/* -------- 判定 -------- */
-function check(){
+/* ===== マッチ処理 ===== */
+function checkMatch(){
   let del=[];
-  for(let r=0;r<ROW;r++)for(let c=0;c<COL-2;c++)
-    if(board[r][c]==board[r][c+1]&&board[r][c]==board[r][c+2])
-      del.push([r,c],[r,c+1],[r,c+2]);
+  for(let r=0;r<ROW;r++){
+    for(let c=0;c<COL-2;c++){
+      if(board[r][c]&&board[r][c]==board[r][c+1]&&board[r][c]==board[r][c+2])
+        del.push([r,c],[r,c+1],[r,c+2]);
+    }
+  }
+  for(let c=0;c<COL;c++){
+    for(let r=0;r<ROW-2;r++){
+      if(board[r][c]&&board[r][c]==board[r+1][c]&&board[r][c]==board[r+2][c])
+        del.push([r,c],[r+1,c],[r+2,c]);
+    }
+  }
 
-  for(let c=0;c<COL;c++)for(let r=0;r<ROW-2;r++)
-    if(board[r][c]==board[r+1][c]&&board[r][c]==board[r+2][c])
-      del.push([r,c],[r+1,c],[r+2,c]);
-
-  if(!del.length){combo=0;return;}
+  if(!del.length) return;
 
   combo++;
-  score+=del.length*10*combo;
-  enemyHP-=del.length*5;
-  del.forEach(p=>board[p[0]][p[1]]=null);
-  fall(); showCombo(); updateUI();
+  enemyHP-=del.length*3;
 
-  if(enemyHP<=0){
-    stage++; score+=500;
-    newEnemy();
-  }
-  saveGame();
-  setTimeout(check,150);
+  del.forEach(([r,c])=>board[r][c]=null);
+  fall();
+  updateUI();
+  setTimeout(checkMatch,200);
 }
 
-/* -------- 落下 -------- */
+/* ===== 落下 ===== */
 function fall(){
   for(let c=0;c<COL;c++){
     for(let r=ROW-1;r>=0;r--){
@@ -203,87 +246,31 @@ function fall(){
             break;
           }
         }
-        if(!board[r][c]) board[r][c]=rand();
+        if(!board[r][c]) board[r][c]=colors[Math.floor(Math.random()*5)];
       }
     }
   }
   draw();
 }
 
-/* -------- タイマー -------- */
-function startTimer(){
-  const t=setInterval(()=>{
-    timer--;
-    document.getElementById("timer").textContent="TIME: "+timer;
-    if(timer<=0){
-      clearInterval(t);
-      enemyTurn();
-    }
-  },1000);
-}
-
-/* -------- 敵ターン -------- */
-function enemyTurn(){
-  showTurn("ENEMY TURN","enemy");
-  setTimeout(()=>{
-    let dmg=enemyType==="boss"?25:15;
-    playerHP-=dmg;
-    turnCount++;
-    healCharge=Math.max(0,3-(turnCount%3));
-    updateUI();
-    if(playerHP<=0){gameOver();}
-    else{timer=30;timerOn=false;}
-  },700);
-}
-
-/* -------- 回復 -------- */
-function heal(){
-  if(healCharge>0)return;
-  playerHP=Math.min(100,playerHP+30);
-  healCharge=3;
-  updateUI();
-}
-
-/* -------- UI -------- */
-function showCombo(){
-  const c=document.getElementById("combo");
-  c.textContent=combo+" COMBO!";
-  c.style.opacity=1;
-  setTimeout(()=>c.style.opacity=0,400);
-}
-function updateUI(){
-  document.getElementById("hp").style.width=playerHP+"%";
-  document.getElementById("enemy").style.width=enemyHP+"%";
-  document.getElementById("stage").textContent=stage;
-  document.getElementById("score").textContent="SCORE: "+score;
-  document.getElementById("skillBtn").textContent="HEAL ("+healCharge+")";
-  document.getElementById("skillBtn").style.opacity=healCharge===0?1:.4;
-}
-
-/* -------- セーブ -------- */
+/* ===== セーブ ===== */
 function saveGame(){
-  localStorage.setItem(SAVE_KEY,JSON.stringify({
-    board,stage,playerHP,enemyHP,score,turnCount
+  localStorage.setItem("pzl_save",JSON.stringify({
+    turn,playerHP,enemyHP,board
   }));
 }
 function loadGame(){
-  const d=JSON.parse(localStorage.getItem(SAVE_KEY));
-  if(!d)return false;
-  board=d.board;stage=d.stage;playerHP=d.playerHP;
-  enemyHP=d.enemyHP;score=d.score;turnCount=d.turnCount;
-  draw();updateUI();return true;
+  const d=JSON.parse(localStorage.getItem("pzl_save"));
+  if(!d) return;
+  turn=d.turn;playerHP=d.playerHP;enemyHP=d.enemyHP;board=d.board;
+  updateUI();draw();
 }
 
-/* -------- 終了 -------- */
+/* ===== 終了 ===== */
 function gameOver(){
   document.getElementById("result").style.display="flex";
   document.getElementById("resultText").textContent="GAME OVER";
 }
-
-function rand(){return colors[Math.floor(Math.random()*colors.length)]}
-
-/* 起動 */
-if(!loadGame()) init();
 </script>
 </body>
 </html>
